@@ -62,32 +62,56 @@ For every node extract:
 - "type": from the above list
 - "properties.description": 2 sentences of factual context
 - "properties.category": one of: geopolitics, trade, economy, organization, event, resource, infrastructure, military, technology
-- "properties.importance": A STRICT FLOAT BETWEEN 0.0 AND 1.0 representing global significance/impact. YOU MUST CALCULATE AND PROVIDE THIS FOR EVERY NODE WITHOUT EXCEPTION.
+- "properties": Include extensive quantitative data (e.g. population, GDP, founding_year, casualty_count) and other specific attributes based on Node type.
+- "properties.importance": A STRICT FLOAT BETWEEN 0.0 AND 1.0 representing global significance/impact. YOU MUST CALCULATE THIS FOR EVERY NODE.
 
 For every edge extract:
 - "source": source node id
 - "target": target node id
-- "relationship": verb phrase e.g. SANCTIONS, ALLY_OF, COMMANDS, BORDERS, EXPORTS_TO, SIGNED_WITH, OPPOSES, FUNDS
-- "weight": float 0–1 indicating strength
+- "relationship": verb phrase expressing a specific real-world relationship.
+- "weight": float 0-1 indicating strength
 - "description": a brief explanation referencing the real-world context
 
 ## CRITICAL RULES
-1. Extract a MINIMUM of 25 nodes and 30 edges — do NOT be conservative
-2. Use REAL names — no placeholders like "Country A" or "some organization"
-3. Every node id must be unique, lowercase, with underscores
-4. Every edge must reference valid node ids that exist in your nodes array
-5. No duplicate nodes — if the same entity appears multiple times, use ONE node
-6. Relationships must be directional and logically correct
-7. Cover ALL domains present in the text (politics, economics, trade, military, etc.)
-8. Infer implicit relationships — if two entities are mentioned in similar contexts, consider how they relate
+Before you extract a single node, read the entire source text and identify the 5 to 7 most important real-world relationships it describes. These relationships are your skeleton. Every node you create must serve at least one of these relationships. If a concept you are considering does not serve any of the core relationships, it does not get its own node.
 
-CRITICAL EDGE RULE: Every single node you emit MUST appear as either a source or target in at least one edge. A node with zero edges is forbidden. If a node has no obvious direct relationship to another, connect it with a RELATED_TO or INFLUENCES edge to the most thematically relevant node. The edges array must have AT LEAST (number_of_nodes × 1.5) entries — a graph with 30 nodes needs at minimum 45 edges. Prefer multiple relationship types: ALLY_OF, OPPOSES, SANCTIONS, TRADES_WITH, COMMANDS, LOCATED_IN, SIGNED, PART_OF, FUNDS, BORDERS, CAUSED_BY, LEADS.
+Rule 1 — The entity test. Apply this before creating any node.
+Ask: does this concept make decisions, sign agreements, command forces, control territory, produce resources, or enter into relationships with other actors? If yes, it is an entity and deserves a node. If no — if it is a measurement, a capability, a policy, a program, or a characteristic of another entity — it is a property. Store it as a property on the parent node, not as a separate node. (e.g. "Military budget" is a property of a country. "Tehran's economy" is a property of Tehran). The only exception is when the concept has independent relationships with three or more different entities that the parent node does not share.
+
+Rule 2 — The connectivity requirement. Apply this before finalizing any node.
+Every node must connect to at least two other nodes through edges that go to different parts of the graph. A node with only one edge is almost certainly an attribute of its single neighbor. A node that only connects to other nodes within a group of three or fewer is an island and must be eliminated or merged. If you cannot find two meaningful connections for a node to different parts of the graph, delete that node and add its information as a property to the most relevant existing node.
+
+Rule 3 — Deduplication. Apply this continuously.
+Before adding any node, scan your existing node list for any node that refers to the same real-world entity under a different name, abbreviation, title, or description. Merge them into one node. Use the most specific and internationally recognized name as the label. Never create two nodes for the same real-world entity.
+
+Rule 4 — Island prevention. Apply this as a final pass.
+Identify every connected component in your graph. For each island cluster, find the strongest conceptual bridge between that cluster and the main graph and add an edge expressing that relationship. If no meaningful edge exists, the entire cluster is off-topic and must be deleted.
+
+Rule 5 — Relationship types must be specific and directional.
+Never use vague relationship types like RELATED_TO or CONNECTED_TO. Every edge must express a specific real-world relationship: SANCTIONS, ALLY_OF, EXPORTS_TO, COMMANDS, FUNDS, SIGNED, BORDERS, MEMBER_OF, OPPOSES, CAUSED_BY, CONTROLS, TRADES_WITH, LEADS, PART_OF, LOCATED_IN, THREATENS.
+
+Rule 6 — Node properties must be data-rich.
+Every node must carry real quantitative data in its properties wherever it exists. 
+- COUNTRY: Must include population, GDP, GDP change, primary exports with dollar values, etc.
+- PERSON: Must include role, age, years in power, net worth (if known), legal/sanctions status.
+- ORGANIZATION: Must include founding year, member count, annual budget, primary mandate.
+- EVENT: Must include exact date, location, casualty count, financial cost, direct consequences.
+Empty properties mean an empty intel panel.
+
+FINAL VERIFICATION:
+1. Does every node pass the entity test (actor, not attribute)?
+2. Does every node have at least two edges to different parts of the graph?
+3. Are there duplicate nodes representing the same entity? (If yes, merge)
+4. Are there any island clusters? (If yes, bridge or delete)
+5. Does every edge have a specific relationship type?
+6. Does every node have quantitative data in its properties?
+If ANY answer is no, fix it before outputting.
 
 Return ONLY a valid JSON object with keys "nodes" and "edges". No markdown, no explanation.
 
 {
-  "nodes": [ { "id": "", "label": "", "type": "", "properties": { "description": "", "category": "" }, "importance": 0 } ],
-  "edges": [ { "source": "", "target": "", "relationship": "", "weight": 0.0, "description": "" } ]
+  "nodes": [ { "id": "", "label": "", "type": "", "properties": { "description": "", "category": "", "population": 0 }, "importance": 0.8 } ],
+  "edges": [ { "source": "", "target": "", "relationship": "SANCTIONS", "weight": 0.9, "description": "" } ]
 }`;
 
 // ─── Main Extraction Function ────────────────────────────────────────────────

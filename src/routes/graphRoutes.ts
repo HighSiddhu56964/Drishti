@@ -12,6 +12,7 @@ import { generateKnowledgeGraph } from "../services/graphExtractor.js";
 import { saveGraphToNeo4j, getGraphSnapshot } from "../services/neo4jService.js";
 import { fetchEntityInfo } from "../services/wikiService.js";
 import { normalizeGraph } from "../utils/graphNormalizer.js";
+import { analyzeGraphPredictively } from "../services/predictiveService.js";
 
 const router = Router();
 
@@ -312,6 +313,159 @@ Include 5-8 timeline events and 4-6 insight points. You MUST return a highly acc
         "This entity plays a role in the current geopolitical landscape.",
         "Further analysis is recommended for comprehensive understanding.",
       ],
+    });
+  }
+});
+
+// ─── POST /predictive-analysis — AI analysis of the entire graph ──────────
+const GraphPayloadSchema = z.object({
+  nodes: z.array(z.any()),
+  edges: z.array(z.any()),
+  meta: z.any().optional(),
+});
+
+router.post("/predictive-analysis", async (req: Request, res: Response): Promise<void> => {
+  try {
+    const parsed = GraphPayloadSchema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: "Invalid graph payload format" });
+      return;
+    }
+
+    console.log(`\n${"─".repeat(60)}`);
+    console.log(`[Predictive Analysis] Analyzing graph with ${parsed.data.nodes.length} nodes...`);
+
+    const analysis = await analyzeGraphPredictively({
+      nodes: parsed.data.nodes,
+      edges: parsed.data.edges
+    });
+
+    res.json(analysis);
+  } catch (err) {
+    console.error("[GraphRoute] Predictive analysis error:", err);
+    res.status(500).json({
+      error: "Failed to run predictive analysis",
+      message: err instanceof Error ? err.message : "Unknown error",
+    });
+  }
+});
+
+// ─── POST /re-evaluate — PALANTIR DEEP RE-EVALUATION SYSTEM ──────────
+router.post("/re-evaluate", async (req: Request, res: Response): Promise<void> => {
+  try {
+    const parsed = GraphPayloadSchema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: "Invalid graph payload" });
+      return;
+    }
+
+    console.log(`\n${"═".repeat(60)}`);
+    console.log(`[RE-EVALUATE] Deep analysis initiated — ${parsed.data.nodes.length} nodes, ${parsed.data.edges.length} edges`);
+
+    const summarizedNodes = parsed.data.nodes.map((n: any) => ({
+      id: n.id, label: n.label, type: n.type,
+      desc: n.properties?.description?.substring(0, 120)
+    }));
+    const summarizedEdges = parsed.data.edges.map((e: any) => ({
+      from: e.source, to: e.target, rel: e.relationship
+    }));
+    const payload = JSON.stringify({ nodes: summarizedNodes, edges: summarizedEdges });
+
+    const SUPER_SYSTEM_PROMPT = `You are PALANTIR — the most advanced intelligence graph re-evaluation engine on Earth. 
+You operate across ALL intelligence disciplines: SIGINT (signals), HUMINT (human), OSINT (open source), GEOINT (geospatial), MASINT (measurement), and FININT (financial).
+
+You have been given the OUTPUT of a previous knowledge graph extraction. Your mission is to DEEPLY RE-ANALYZE this graph and find:
+
+1. **HIDDEN CONNECTIONS**: Entities that SHOULD be connected but are NOT. Cross-reference every node against every other node. Look for:
+   - Shared geopolitical interests or conflicts
+   - Financial dependencies (sanctions, trade, investments)  
+   - Military alliances or adversarial relationships
+   - Historical precedents and diplomatic ties
+   - Supply chain and resource dependencies
+   - Shared personnel, organizations, or intermediaries
+
+2. **MISSING CRITICAL ENTITIES**: Nodes that are CONSPICUOUSLY ABSENT from the graph. Every intelligence picture has blind spots. Identify:
+   - Key actors who MUST be involved but aren't mentioned
+   - Organizations that mediate between existing entities
+   - Geographic locations critical to the dynamics
+   - Historical events that shaped current relationships
+   - Financial instruments or mechanisms at play
+
+3. **THREAT VECTORS & OPPORTUNITIES**: Based on the graph topology:
+   - What are the highest-risk escalation paths?
+   - Where are the leverage points for influence?
+   - What would disruption at key nodes cause?
+   - What intelligence gaps need to be filled?
+
+4. **RECURSIVE DEEP LINKS**: For each NEW node you add, ALSO find its connections to ALL existing nodes AND to other new nodes. Think 2-3 hops deep. Every entity connects to the web.
+
+OUTPUT FORMAT — Return ONLY a valid JSON object:
+{
+  "deepInsights": ["5-8 sentences revealing NON-OBVIOUS intelligence findings. Be specific, cite entity names."],
+  "threatAssessment": ["3-5 threat vectors with severity HIGH/MEDIUM/LOW"],
+  "newNodes": [
+    {
+      "id": "snake_case_id",
+      "label": "Full Entity Name",
+      "type": "COUNTRY | PERSON | ORGANIZATION | LOCATION | EVENT | CONCEPT | RESOURCE | MILITARY_ASSET | FINANCIAL_INSTRUMENT",
+      "properties": { "description": "Intelligence brief (2-3 sentences)", "category": "domain", "source": "OSINT/SIGINT/HUMINT/etc" },
+      "importance": 0.0-1.0
+    }
+  ],
+  "newEdges": [
+    {
+      "source": "existing_or_new_node_id",
+      "target": "existing_or_new_node_id", 
+      "relationship": "VERB_PHRASE_UPPERCASE",
+      "weight": 0.0-1.0,
+      "description": "Brief explanation of this intelligence link"
+    }
+  ]
+}
+
+CRITICAL RULES:
+- Generate 8-15 new nodes (be AGGRESSIVE in expansion)
+- Generate 15-30 new edges (EVERY new node must connect to at least 2 existing nodes)
+- Cross-link new nodes to EACH OTHER where applicable
+- EVERY edge must have valid source/target IDs (existing in graph OR in newNodes)
+- Be geopolitically accurate and intelligence-grade
+- Think like a Palantir Gotham analyst: follow the money, the weapons, the people, the data`;
+
+    const openai = new (await import("openai")).default({
+      apiKey: process.env.OPENAI_API_KEY,
+      baseURL: "https://api.groq.com/openai/v1",
+    });
+
+    const response = await openai.chat.completions.create({
+      model: "meta-llama/llama-4-scout-17b-16e-instruct",
+      temperature: 0.4,
+      max_tokens: 6000,
+      response_format: { type: "json_object" },
+      messages: [
+        { role: "system", content: SUPER_SYSTEM_PROMPT },
+        { role: "user", content: `INTELLIGENCE GRAPH PAYLOAD:\n\n${payload}` },
+      ],
+    });
+
+    const raw = response.choices[0]?.message?.content;
+    if (!raw) throw new Error("Empty response from re-evaluation engine.");
+
+    let cleanRaw = raw.trim();
+    if (cleanRaw.startsWith("```json")) {
+      cleanRaw = cleanRaw.replace(/^```json/, "").replace(/```$/, "").trim();
+    } else if (cleanRaw.startsWith("```")) {
+      cleanRaw = cleanRaw.replace(/^```/, "").replace(/```$/, "").trim();
+    }
+
+    const result = JSON.parse(cleanRaw);
+    console.log(`[RE-EVALUATE] Complete — found ${result.newNodes?.length || 0} new nodes, ${result.newEdges?.length || 0} new edges`);
+    
+    res.json(result);
+  } catch (err) {
+    console.error("[GraphRoute] Re-evaluation error:", err);
+    res.status(500).json({
+      error: "Deep re-evaluation failed",
+      message: err instanceof Error ? err.message : "Unknown error",
     });
   }
 });

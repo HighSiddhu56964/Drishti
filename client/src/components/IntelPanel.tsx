@@ -1,6 +1,8 @@
 import { useEffect, useState, useMemo } from "react";
 import type { NodeData, GraphPayload, WikiInfo, NodeDetails } from "../types";
 import { getColor } from "../types";
+import { Activity, ShieldAlert, Zap, Box, Lock, TrendingUp, Info, ActivitySquare } from 'lucide-react';
+import PredictivePanel from './PredictivePanel';
 
 interface Props {
   node: NodeData | null;
@@ -16,6 +18,7 @@ export default function IntelPanel({ node, graphData, onClose, onNavigate, onExp
   const [details, setDetails] = useState<NodeDetails | null>(null);
   const [loadingWiki, setLoadingWiki] = useState(false);
   const [loadingDetails, setLoadingDetails] = useState(false);
+  const [showPredictive, setShowPredictive] = useState(false);
 
   // Build adjacency + connections
   const connections = useMemo(() => {
@@ -274,6 +277,16 @@ export default function IntelPanel({ node, graphData, onClose, onNavigate, onExp
           )}
         </div>
       </div>
+
+      <div className="ip-actions">
+        <button className="predict-btn" onClick={() => setShowPredictive(true)}>
+          <ActivitySquare size={14} /> PREDICTIVE ANALYSIS & FORECASTING
+        </button>
+      </div>
+
+      {showPredictive && (
+        <PredictivePanel node={node} onClose={() => setShowPredictive(false)} />
+      )}
     </div>
   );
 }

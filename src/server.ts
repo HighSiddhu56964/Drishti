@@ -5,10 +5,19 @@
 import "dotenv/config";
 import express from "express";
 import cors from "cors";
+import http from "http";
+import { Server as SocketIOServer } from "socket.io";
 import graphRoutes from "./routes/graphRoutes.js";
+import aviationRoutes from "./routes/aviationRoutes.js";
+import predictRoutes from "./routes/predictRoutes.js";
 import { initNeo4j, closeNeo4j } from "./services/neo4jService.js";
+import { initAisStream } from "./services/aisStreamService.js";
 
 const app = express();
+const server = http.createServer(app);
+const io = new SocketIOServer(server, {
+  cors: { origin: "*" }
+});
 const PORT = parseInt(process.env.PORT || "3000", 10);
 
 // ─── Middleware ───────────────────────────────────────────────────────────────
@@ -16,7 +25,9 @@ app.use(cors());
 app.use(express.json());
 
 // ─── Routes ──────────────────────────────────────────────────────────────────
+app.use("/graph/predict", predictRoutes);
 app.use("/graph", graphRoutes);
+app.use("/api/aviation", aviationRoutes);
 
 // ─── Serve static frontend ──────────────────────────────────────────────────
 import path from "path";
@@ -66,12 +77,16 @@ async function startServer() {
   // Initialize Neo4j (non-fatal if unavailable)
   await initNeo4j();
 
-  app.listen(PORT, () => {
+  // Initialize AIS Stream WebSocket Service
+  initAisStream(io);
+
+  server.listen(PORT, () => {
     console.log(`
 ╔══════════════════════════════════════════════════════════╗
 ║  🔮  Drishti Knowledge Graph Engine                    ║
 ║  🌐  http://localhost:${PORT}                             ║
 ║  📡  POST /graph/query                                  ║
+║  🌊  WSS  ws://localhost:${PORT}                             ║
 ║  📸  GET  /graph/snapshot                               ║
 ║  💚  GET  /health                                       ║
 ╚══════════════════════════════════════════════════════════╝
