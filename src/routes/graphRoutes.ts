@@ -251,6 +251,15 @@ router.post("/node-details", async (req: Request, res: Response): Promise<void> 
 Return ONLY valid JSON with these keys:
 {
   "fullDescription": "A detailed 200-500 word explanation of this entity, its significance, history, and current role in global affairs.",
+  "designation": "If this entity is a PERSON, output their exact official title or post (e.g. 'Prime Minister of Iran', 'CEO of Tesla', 'General of Army'). If NOT a person, output the entity's general classification (e.g. 'Multinational Technology Company', 'International Maritime Strait', 'Geopolitical Conflict'). Do not just say 'Company' or 'Location'.",
+  "vitalStatistic": {
+    "metric": "Exact critical percentage or hard figure (e.g. '20%', '$5 Trillion', '300,000 km²')",
+    "label": "Exactly what this percentage/figure represents (e.g. 'of global oil trade volume', 'annual revenue', 'area of influence')"
+  },
+  "hardFact": {
+    "metric": "e.g. '1st', 'Sole Provider', 'Key Chokepoint', 'Top 5'",
+    "label": "Brief strategic reality or ranking (e.g. 'Largest Global Exporter', 'Only maritime route out of gulf')"
+  },
   "globalImpact": {
     "economy": "How this entity affects global/regional economics (2-3 sentences)",
     "geopolitics": "Geopolitical significance (2-3 sentences)", 
@@ -265,7 +274,7 @@ Return ONLY valid JSON with these keys:
     "Dependency or relationship bullet point"
   ]
 }
-Include 5-8 timeline events and 4-6 insight points. Be factual and specific.`,
+Include 5-8 timeline events and 4-6 insight points. You MUST return a highly accurate 'vitalStatistic' metric representing the real-world scale or impact percentage of this entity. Be factual and specific.`,
         },
         {
           role: "user",

@@ -1,5 +1,5 @@
 /**
- * Palantir Knowledge Graph Engine — Server Entry Point
+ * Drishti Knowledge Graph Engine — Server Entry Point
  */
 
 import "dotenv/config";
@@ -35,7 +35,7 @@ app.get("/", (_req, res) => {
 app.get("/health", (_req, res) => {
   res.json({
     status: "ok",
-    service: "Palantir Knowledge Graph Engine",
+    service: "Drishti Knowledge Graph Engine",
     timestamp: new Date().toISOString(),
   });
 });
@@ -69,7 +69,7 @@ async function startServer() {
   app.listen(PORT, () => {
     console.log(`
 ╔══════════════════════════════════════════════════════════╗
-║  🔮  Palantir Knowledge Graph Engine                    ║
+║  🔮  Drishti Knowledge Graph Engine                    ║
 ║  🌐  http://localhost:${PORT}                             ║
 ║  📡  POST /graph/query                                  ║
 ║  📸  GET  /graph/snapshot                               ║

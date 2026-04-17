@@ -1,5 +1,5 @@
 {
-  "name": "palantir-knowledge-graph",
+  "name": "drishti-knowledge-graph",
   "version": "1.0.0",
   "description": "Universal Knowledge Graph Engine — generates structured multi-domain knowledge graphs from any real-world query",
   "main": "dist/server.js",
@@ -12,8 +12,10 @@
     "start": "node dist/server.js"
   },
   "dependencies": {
+    "@types/d3-force": "^3.0.10",
     "cors": "^2.8.5",
     "d3": "^7.9.0",
+    "d3-force": "^3.0.0",
     "dotenv": "^16.4.7",
     "express": "^4.21.2",
     "neo4j-driver": "^6.0.1",

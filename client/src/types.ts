@@ -1,4 +1,4 @@
-/* Shared types and helpers for the Palantir KG React app */
+/* Shared types and helpers for the Drishti KG React app */
 
 export interface NodeData {
   id: string;
@@ -107,6 +107,15 @@ export function sanitizeGraphData(data: GraphPayload): GraphPayload {
 /* ── AI-generated node intelligence ─── */
 export interface NodeDetails {
   fullDescription: string;
+  designation?: string;
+  vitalStatistic?: {
+    metric: string;
+    label: string;
+  };
+  hardFact?: {
+    metric: string;
+    label: string;
+  };
   globalImpact: {
     economy: string;
     geopolitics: string;

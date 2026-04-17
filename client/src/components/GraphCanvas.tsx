@@ -132,8 +132,12 @@ const GraphCanvas = forwardRef(function GraphCanvas({ data, onNodeClick }: Props
   useEffect(() => {
     const fg = fgRef.current;
     if (!fg) return;
-    fg.d3Force('charge').strength(-400);
-    fg.d3Force('link').distance(160).strength(0.3);
+    const numNodes = graphData.nodes.length;
+    const chargeStrength = Math.min(-400, -300 - (numNodes * 8));
+    const linkDist = Math.max(160, 100 + (numNodes * 3));
+    
+    fg.d3Force('charge').strength(chargeStrength);
+    fg.d3Force('link').distance(linkDist).strength(0.3);
     fg.d3Force('collision', d3.forceCollide(45));
     fg.d3Force('center').strength(0.03);
   }, [graphData]);
@@ -167,36 +171,57 @@ const GraphCanvas = forwardRef(function GraphCanvas({ data, onNodeClick }: Props
     ctx.globalAlpha = dim ? 0.18 : 1;
 
     // Glow aura
-    const glow = ctx.createRadialGradient(x, y, r * 0.5, x, y, r * 2.5);
-    glow.addColorStop(0, col + '35');
-    glow.addColorStop(0.5, col + '12');
+    const glow = ctx.createRadialGradient(x, y, r * 0.5, x, y, r * 3);
+    glow.addColorStop(0, col + '45');
+    glow.addColorStop(0.5, col + '1a');
     glow.addColorStop(1, col + '00');
     ctx.fillStyle = glow;
     ctx.beginPath();
-    ctx.arc(x, y, r * 2.5, 0, Math.PI * 2);
+    ctx.arc(x, y, r * 3, 0, Math.PI * 2);
     ctx.fill();
+
+    // Pulsing dashed orbit
+    ctx.beginPath();
+    ctx.arc(x, y, r * 1.5 + pulse * 15, 0, Math.PI * 2);
+    ctx.strokeStyle = col + '55';
+    ctx.lineWidth = 1;
+    ctx.setLineDash([4, 6]);
+    ctx.stroke();
+    ctx.setLineDash([]);
 
     // Dark interior
     ctx.beginPath();
     ctx.arc(x, y, r, 0, Math.PI * 2);
-    ctx.fillStyle = 'rgba(6,10,24,0.92)';
+    ctx.fillStyle = 'rgba(6,10,24,0.95)';
     ctx.fill();
+
+    // Sub-surface grid/dot pattern
+    const ptSize = Math.max(1, r/8);
+    ctx.fillStyle = col + '33';
+    for(let i=-1; i<=1; i++) {
+      for(let j=-1; j<=1; j++) {
+         if(i===0 && j===0) continue;
+         ctx.beginPath();
+         ctx.arc(x + i*(r/2.5), y + j*(r/2.5), ptSize, 0, Math.PI*2);
+         ctx.fill();
+      }
+    }
 
     // Prominent colored ring
     ctx.beginPath();
     ctx.arc(x, y, r, 0, Math.PI * 2);
     ctx.strokeStyle = col;
-    ctx.lineWidth = hv ? 3.5 : hl ? 3 : 2.5;
+    ctx.lineWidth = hv ? 4 : hl ? 3.5 : 2.8;
     ctx.shadowColor = col;
-    ctx.shadowBlur = hv ? 28 : hl ? 18 : 10 + pulse * 25;
+    ctx.shadowBlur = hv ? 35 : hl ? 22 : 12 + pulse * 30;
     ctx.stroke();
     ctx.shadowBlur = 0;
 
     // Inner ring
     ctx.beginPath();
     ctx.arc(x, y, r * 0.72, 0, Math.PI * 2);
-    ctx.strokeStyle = col + '25';
-    ctx.lineWidth = 1;
+    ctx.strokeStyle = col + '44';
+    ctx.lineWidth = 1.5;
     ctx.stroke();
 
     // Rotating propeller triangles

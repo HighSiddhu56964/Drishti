@@ -34,7 +34,7 @@ export async function fetchEntityInfo(label: string): Promise<WikiEntityInfo | n
       `${WIKI_API}/page/summary/${searchTerm}`,
       {
         signal: controller.signal,
-        headers: { "User-Agent": "PalantirKG/1.0 (Knowledge Graph Engine)" },
+        headers: { "User-Agent": "DrishtiKG/1.0 (Knowledge Graph Engine)" },
       }
     );
 
@@ -85,7 +85,7 @@ async function searchAndFetch(
     const searchUrl = `https://en.wikipedia.org/w/api.php?action=opensearch&search=${encodeURIComponent(query)}&limit=1&format=json`;
     const searchRes = await fetch(searchUrl, {
       signal,
-      headers: { "User-Agent": "PalantirKG/1.0 (Knowledge Graph Engine)" },
+      headers: { "User-Agent": "DrishtiKG/1.0 (Knowledge Graph Engine)" },
     });
 
     if (!searchRes.ok) return null;
@@ -99,7 +99,7 @@ async function searchAndFetch(
       `${WIKI_API}/page/summary/${bestTitle}`,
       {
         signal,
-        headers: { "User-Agent": "PalantirKG/1.0 (Knowledge Graph Engine)" },
+        headers: { "User-Agent": "DrishtiKG/1.0 (Knowledge Graph Engine)" },
       }
     );
 

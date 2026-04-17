@@ -17,7 +17,7 @@ export default function QueryBar({ onSubmit }: Props) {
 
   return (
     <div className="top-bar">
-      <div className="logo">🔮 Palantir</div>
+      <div className="logo">🔮 Drishti</div>
       <div className="input-row">
         <input
           ref={inputRef}

@@ -62,7 +62,7 @@ For every node extract:
 - "type": from the above list
 - "properties.description": 2 sentences of factual context
 - "properties.category": one of: geopolitics, trade, economy, organization, event, resource, infrastructure, military, technology
-- "importance": integer 1–10
+- "properties.importance": A STRICT FLOAT BETWEEN 0.0 AND 1.0 representing global significance/impact. YOU MUST CALCULATE AND PROVIDE THIS FOR EVERY NODE WITHOUT EXCEPTION.
 
 For every edge extract:
 - "source": source node id
