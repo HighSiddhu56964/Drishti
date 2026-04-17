@@ -1,0 +1,40 @@
+{
+  "name": "palantir-knowledge-graph",
+  "version": "1.0.0",
+  "description": "Universal Knowledge Graph Engine — generates structured multi-domain knowledge graphs from any real-world query",
+  "main": "dist/server.js",
+  "type": "module",
+  "scripts": {
+    "dev": "concurrently -n server,client -c blue,green \"tsx watch src/server.ts\" \"vite --config vite.config.ts\"",
+    "dev:server": "tsx watch src/server.ts",
+    "dev:client": "vite --config vite.config.ts",
+    "build": "tsc && vite build --config vite.config.ts",
+    "start": "node dist/server.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "d3": "^7.9.0",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "neo4j-driver": "^6.0.1",
+    "openai": "^4.78.1",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0",
+    "react-force-graph-2d": "^1.26.7",
+    "uuid": "^11.1.0",
+    "zod": "^3.24.2"
+  },
+  "devDependencies": {
+    "@types/cors": "^2.8.17",
+    "@types/d3": "^7.4.3",
+    "@types/express": "^5.0.0",
+    "@types/react": "^19.1.2",
+    "@types/react-dom": "^19.1.2",
+    "@types/uuid": "^10.0.0",
+    "@vitejs/plugin-react": "^4.4.1",
+    "concurrently": "^9.1.2",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.3",
+    "vite": "^6.3.2"
+  }
+}

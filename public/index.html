@@ -1,0 +1,833 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Palantir — Knowledge Graph Engine</title>
+  <meta name="description" content="Interactive knowledge graph engine — generate and visualize real-time intelligence graphs from any query.">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <script src="https://unpkg.com/force-graph"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Inter', system-ui, sans-serif;
+      background: #060a18;
+      color: #e0e0e8;
+      min-height: 100vh;
+      overflow: hidden;
+    }
+
+    /* ── Futuristic animated background ── */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background:
+        radial-gradient(ellipse at 15% 50%, rgba(6, 182, 212, 0.08) 0%, transparent 50%),
+        radial-gradient(ellipse at 85% 20%, rgba(139, 92, 246, 0.07) 0%, transparent 50%),
+        radial-gradient(ellipse at 50% 85%, rgba(16, 185, 129, 0.05) 0%, transparent 50%);
+      z-index: -2;
+      animation: bgPulse 8s ease-in-out infinite alternate;
+    }
+
+    body::after {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image:
+        linear-gradient(rgba(99,102,241,0.04) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(99,102,241,0.04) 1px, transparent 1px);
+      background-size: 60px 60px;
+      z-index: -1;
+      animation: gridScroll 25s linear infinite;
+      pointer-events: none;
+    }
+
+    @keyframes bgPulse { 0% { opacity: 0.5; } 100% { opacity: 1; } }
+    @keyframes gridScroll { 0% { transform: translate(0,0); } 100% { transform: translate(60px,60px); } }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    @keyframes panelSlideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+
+    /* ── Top bar ── */
+    .top-bar {
+      display: flex; align-items: center; gap: 16px;
+      padding: 16px 24px;
+      background: rgba(2, 6, 23, 0.85);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+      backdrop-filter: blur(16px);
+      position: sticky; top: 0; z-index: 100;
+    }
+    .top-bar .logo { font-size: 13px; letter-spacing: 3px; text-transform: uppercase; color: #818cf8; font-weight: 700; flex-shrink: 0; }
+    .top-bar .input-row { display: flex; gap: 10px; flex: 1; max-width: 720px; }
+    .top-bar input {
+      flex: 1; padding: 10px 16px;
+      background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 8px; color: #e0e0e8; font-size: 14px; font-family: inherit; outline: none; transition: border 0.2s;
+    }
+    .top-bar input:focus { border-color: #818cf8; }
+    .top-bar input::placeholder { color: #52525b; }
+    .btn {
+      padding: 10px 22px; background: linear-gradient(135deg, #6366f1, #8b5cf6);
+      border: none; border-radius: 8px; color: #fff; font-size: 14px; font-weight: 600;
+      cursor: pointer; transition: transform 0.15s, box-shadow 0.2s; white-space: nowrap;
+    }
+    .btn:hover { transform: translateY(-1px); box-shadow: 0 4px 20px rgba(99,102,241,0.45); }
+    .btn:active { transform: translateY(0); }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; box-shadow: none; }
+
+    /* ── Examples ── */
+    .examples { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+    .examples span { font-size: 11px; color: #52525b; }
+    .example-chip {
+      padding: 3px 10px; background: rgba(99,102,241,0.08); border: 1px solid rgba(99,102,241,0.18);
+      border-radius: 16px; color: #818cf8; font-size: 11px; cursor: pointer; transition: background 0.2s;
+    }
+    .example-chip:hover { background: rgba(99,102,241,0.18); }
+
+    /* ── Graph header ── */
+    .graph-header { display: none; align-items: center; justify-content: space-between; padding: 14px 24px 4px; }
+    .gh-left { display: flex; align-items: center; gap: 12px; }
+    .gh-icon { font-size: 22px; opacity: 0.5; }
+    .gh-left h2 { font-size: 20px; font-weight: 700; color: #e0e0e8; }
+    .gh-query { padding: 5px 16px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 20px; font-size: 12px; color: #94a3b8; }
+    .gh-right { font-size: 12px; color: #64748b; display: flex; align-items: center; gap: 6px; }
+    .gh-stat { font-weight: 700; color: #818cf8; }
+    .gh-sep { color: #334155; }
+    .graph-sub { display: none; padding: 2px 24px 8px; font-size: 11px; letter-spacing: 2px; color: #475569; font-weight: 500; }
+
+    /* ── Graph container ── */
+    #graphContainer { width: 100%; height: calc(100vh - 130px); position: relative; }
+
+    /* ── Legend ── */
+    .legend {
+      position: fixed; bottom: 20px; left: 20px; padding: 14px 18px;
+      background: rgba(2,6,23,0.8); border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 10px; backdrop-filter: blur(12px); z-index: 50;
+      opacity: 0; transition: opacity 0.4s; pointer-events: none;
+    }
+    .legend.active { opacity: 1; pointer-events: auto; }
+    .legend h4 { font-size: 10px; text-transform: uppercase; letter-spacing: 1.5px; color: #71717a; margin-bottom: 8px; }
+    .legend-item { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; font-size: 11px; color: #a1a1aa; }
+    .legend-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+
+    /* ── Tooltip ── */
+    .graph-tooltip {
+      position: fixed; padding: 14px 18px;
+      background: rgba(2,6,23,0.95); border: 1px solid rgba(129,140,248,0.3);
+      border-radius: 12px; backdrop-filter: blur(16px); z-index: 200;
+      pointer-events: none; opacity: 0; transition: opacity 0.15s; max-width: 350px;
+    }
+    .graph-tooltip.visible { opacity: 1; }
+    .graph-tooltip .tt-label { font-weight: 700; font-size: 15px; color: #f0f0f5; margin-bottom: 4px; }
+    .graph-tooltip .tt-type { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; }
+    .graph-tooltip .tt-desc { font-size: 12px; color: #94a3b8; line-height: 1.5; }
+
+    /* ── Full-screen Intelligence Panel ── */
+    .intel-panel {
+      position: fixed; top: 0; right: -520px; width: 500px; height: 100vh;
+      background: rgba(6,10,24,0.97); border-left: 1px solid rgba(99,102,241,0.15);
+      backdrop-filter: blur(24px); z-index: 300;
+      transition: right 0.4s cubic-bezier(0.4,0,0.2,1);
+      overflow-y: auto; display: flex; flex-direction: column;
+    }
+    .intel-panel.open { right: 0; animation: panelSlideIn 0.4s ease-out; }
+    .intel-panel-header {
+      padding: 24px 28px 20px; border-bottom: 1px solid rgba(255,255,255,0.06);
+      display: flex; align-items: flex-start; gap: 16px; flex-shrink: 0;
+      background: linear-gradient(180deg, rgba(99,102,241,0.06) 0%, transparent 100%);
+    }
+    .intel-panel-header .ip-title-wrap { flex: 1; }
+    .intel-panel-header .ip-title { font-size: 22px; font-weight: 800; color: #f0f0f5; margin-bottom: 4px; }
+    .intel-panel-header .ip-subtitle { font-size: 13px; color: #818cf8; }
+    .intel-panel-header .ip-badge {
+      display: inline-block; padding: 4px 12px; border-radius: 6px;
+      font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; margin-top: 8px;
+    }
+    .ip-close {
+      width: 36px; height: 36px; border-radius: 8px;
+      background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);
+      color: #94a3b8; font-size: 18px; cursor: pointer;
+      display: flex; align-items: center; justify-content: center; transition: all 0.2s; flex-shrink: 0;
+    }
+    .ip-close:hover { background: rgba(239,68,68,0.15); color: #f87171; }
+
+    /* Panel thumbnail */
+    .ip-thumb { width: 100%; max-height: 220px; object-fit: cover; border-bottom: 1px solid rgba(255,255,255,0.06); flex-shrink: 0; }
+
+    /* Panel body */
+    .ip-body { padding: 24px 28px; flex: 1; }
+
+    /* Insight stat cards */
+    .ip-insights { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 24px; }
+    .ip-card {
+      padding: 16px; background: rgba(255,255,255,0.025); border: 1px solid rgba(255,255,255,0.06);
+      border-radius: 12px; text-align: center; position: relative; overflow: hidden;
+    }
+    .ip-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px; border-radius: 3px 3px 0 0; }
+    .ip-card-num { font-size: 22px; font-weight: 800; line-height: 1.1; margin-bottom: 4px; }
+    .ip-card-label { font-size: 10px; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px; }
+
+    /* Section styles */
+    .ip-section { margin-bottom: 24px; }
+    .ip-section-title { font-size: 10px; text-transform: uppercase; letter-spacing: 1.5px; color: #64748b; margin-bottom: 10px; font-weight: 600; display: flex; align-items: center; gap: 6px; }
+    .ip-section-title::before { content: ''; width: 3px; height: 12px; border-radius: 2px; background: #818cf8; }
+    .ip-desc { font-size: 13px; line-height: 1.7; color: #cbd5e1; border-left: 2px solid #818cf8; padding-left: 14px; }
+
+    /* Connections */
+    .ip-conn { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 8px; transition: background 0.15s; cursor: pointer; margin-bottom: 4px; }
+    .ip-conn:hover { background: rgba(255,255,255,0.04); }
+    .ip-conn-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+    .ip-conn-name { font-weight: 600; color: #e0e0e8; font-size: 13px; flex: 1; }
+    .ip-conn-rel { color: #64748b; font-size: 10px; font-style: italic; text-transform: uppercase; }
+
+    /* Wiki link */
+    .ip-wiki-link {
+      display: block; text-align: center; padding: 12px; margin-top: 24px;
+      background: rgba(99,102,241,0.08); border: 1px solid rgba(99,102,241,0.2);
+      border-radius: 10px; color: #818cf8; font-size: 13px; font-weight: 600;
+      text-decoration: none; transition: background 0.2s;
+    }
+    .ip-wiki-link:hover { background: rgba(99,102,241,0.18); }
+
+    /* Loading state */
+    .ip-loading { display: flex; align-items: center; justify-content: center; padding: 60px 20px; flex-direction: column; gap: 12px; }
+    .ip-loading .spinner { width: 28px; height: 28px; border: 2px solid rgba(129,140,248,0.15); border-top-color: #818cf8; border-radius: 50%; animation: spin 0.8s linear infinite; }
+    .ip-loading span { font-size: 12px; color: #64748b; }
+
+    /* ── Loading overlay ── */
+    .loading { position: fixed; inset: 0; display: none; align-items: center; justify-content: center; background: rgba(2,6,23,0.7); z-index: 150; flex-direction: column; }
+    .loading.active { display: flex; }
+    .spinner { width: 44px; height: 44px; border: 3px solid rgba(129,140,248,0.15); border-top-color: #818cf8; border-radius: 50%; animation: spin 0.8s linear infinite; }
+    .loading p { color: #71717a; font-size: 14px; margin-top: 16px; }
+    .loading .sub { font-size: 12px; color: #52525b; margin-top: 4px; }
+
+    /* ── Error ── */
+    .error-box { position: fixed; bottom: 24px; right: 24px; padding: 14px 20px; background: rgba(239,68,68,0.12); border: 1px solid rgba(239,68,68,0.25); border-radius: 10px; color: #fca5a5; font-size: 13px; z-index: 200; display: none; max-width: 400px; backdrop-filter: blur(12px); }
+    .error-box.active { display: block; }
+
+    /* ── Welcome ── */
+    .welcome { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; flex-direction: column; z-index: 10; pointer-events: none; }
+    .welcome h2 { font-size: clamp(22px,4vw,36px); font-weight: 700; background: linear-gradient(135deg,#38bdf8,#818cf8,#a855f7); -webkit-background-clip: text; -webkit-text-fill-color: transparent; margin-bottom: 8px; }
+    .welcome p { color: #52525b; font-size: 14px; }
+
+    @media (max-width: 640px) {
+      .top-bar { flex-wrap: wrap; }
+      .top-bar .input-row { min-width: 100%; }
+      .examples { display: none; }
+      .intel-panel { width: 100%; right: -110%; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ── Top bar ── -->
+<div class="top-bar">
+  <div class="logo">🔮 Palantir</div>
+  <div class="input-row">
+    <input type="text" id="queryInput" placeholder="Enter intelligence query..." />
+    <button class="btn" id="submitBtn" onclick="submitQuery()">Generate</button>
+  </div>
+  <div class="examples">
+    <span>Try:</span>
+    <div class="example-chip" onclick="setQuery('Impact of Iran-Israel conflict on global oil trade and economy')">Iran-Israel &amp; Oil</div>
+    <div class="example-chip" onclick="setQuery('How does NVIDIA monopoly affect global AI chip supply chain')">NVIDIA &amp; AI Chips</div>
+    <div class="example-chip" onclick="setQuery('Russia Ukraine war impact on European energy and NATO strategy')">Russia-Ukraine</div>
+  </div>
+</div>
+
+<!-- ── Graph header ── -->
+<div class="graph-header" id="graphHeader">
+  <div class="gh-left">
+    <span class="gh-icon">⓿</span>
+    <h2>Knowledge Graph</h2>
+    <div class="gh-query" id="queryPill"></div>
+  </div>
+  <div class="gh-right">
+    <span class="gh-stat" id="nodeCount2">0</span> nodes
+    <span class="gh-sep">·</span>
+    <span class="gh-stat" id="edgeCount2">0</span> edges
+    <span class="gh-sep">·</span>
+    <span id="sourcePill2">—</span>
+  </div>
+</div>
+<div class="graph-sub" id="graphSub">◌ GRAPH VISUALIZATION</div>
+
+<!-- ── Legend ── -->
+<div class="legend" id="legend">
+  <h4>Entity Types</h4>
+  <div class="legend-item"><div class="legend-dot" style="background:#06b6d4"></div> Country</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#22d3ee"></div> Organization</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#ef4444"></div> Event</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#f59e0b"></div> Resource</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#a855f7"></div> Person</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#f97316"></div> Company</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#2dd4bf"></div> Economic</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#6366f1"></div> Other</div>
+</div>
+
+<!-- ── Graph canvas ── -->
+<div id="graphContainer">
+  <div class="welcome" id="welcome">
+    <h2>Knowledge Graph Engine</h2>
+    <p>Enter a query above to generate an interactive intelligence graph</p>
+  </div>
+</div>
+
+<!-- ── Tooltip ── -->
+<div class="graph-tooltip" id="tooltip">
+  <div class="tt-label" id="ttLabel"></div>
+  <div class="tt-type" id="ttType"></div>
+  <div class="tt-desc" id="ttDesc"></div>
+</div>
+
+<!-- ── Intelligence Panel ── -->
+<div class="intel-panel" id="intelPanel">
+  <div class="intel-panel-header">
+    <div class="ip-title-wrap">
+      <div class="ip-title" id="ipTitle">Entity</div>
+      <div class="ip-subtitle" id="ipSubtitle">Loading...</div>
+      <div class="ip-badge" id="ipBadge"></div>
+    </div>
+    <button class="ip-close" onclick="closePanel()">✕</button>
+  </div>
+  <img class="ip-thumb" id="ipThumb" style="display:none" />
+  <div class="ip-body" id="ipBody">
+    <div class="ip-loading" id="ipLoading">
+      <div class="spinner"></div>
+      <span>Fetching intelligence...</span>
+    </div>
+    <div id="ipContent" style="display:none">
+      <div class="ip-insights" id="ipInsights"></div>
+      <div class="ip-section">
+        <div class="ip-section-title">Intelligence Overview</div>
+        <div class="ip-desc" id="ipDesc"></div>
+      </div>
+      <div class="ip-section" id="ipConnSection">
+        <div class="ip-section-title">Network Connections</div>
+        <div id="ipConns"></div>
+      </div>
+      <a class="ip-wiki-link" id="ipWikiLink" href="#" target="_blank">🌐 Full article on Wikipedia</a>
+    </div>
+  </div>
+</div>
+
+<!-- ── Loading overlay ── -->
+<div class="loading" id="loading">
+  <div class="spinner"></div>
+  <p>Fetching real-time intelligence data...</p>
+  <p class="sub">Analyzing GDELT + generating knowledge graph</p>
+</div>
+
+<div class="error-box" id="errorBox"></div>
+
+<script>
+/* ═══════════════════════════════════════════════════════════════════════════
+   Palantir Knowledge Graph — Frontend Controller
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+var TYPE_COLORS = {
+  country: '#06b6d4', organization: '#22d3ee', event: '#ef4444',
+  resource: '#f59e0b', person: '#a855f7', company: '#f97316',
+  economic_factor: '#2dd4bf', location: '#3b82f6', infrastructure: '#94a3b8'
+};
+var DEFAULT_COLOR = '#6366f1';
+
+function getColor(t) { return TYPE_COLORS[t] || DEFAULT_COLOR; }
+
+var graph = null;
+var hlNodes = new Set();
+var hlLinks = new Set();
+var hNode = null;
+var animFrame = 0;
+var nodeById = {};
+var wikiCache = {};
+var hoverTimeout = null;
+var currentAdj = {};
+var currentAdjL = {};
+
+/* ── Data Sanitization: Guarantee ALL nodes have complete data ── */
+function sanitizeGraphData(data) {
+  var nodeIds = new Set();
+
+  /* Ensure every node has id, label, type, properties.description */
+  data.nodes = (data.nodes || []).map(function(n) {
+    var node = {
+      id: n.id || ('node_' + Math.random().toString(36).substr(2, 8)),
+      label: n.label || n.id || 'Unknown Entity',
+      type: n.type || 'entity',
+      properties: n.properties || {}
+    };
+    if (!node.properties.description) {
+      node.properties.description = 'Intelligence entity — inferred from context.';
+    }
+    if (!node.properties.category) {
+      node.properties.category = 'general';
+    }
+    nodeIds.add(node.id);
+    return node;
+  });
+
+  /* Remove broken edges that reference non-existent nodes */
+  data.edges = (data.edges || []).filter(function(e) {
+    return nodeIds.has(e.source) && nodeIds.has(e.target);
+  });
+
+  return data;
+}
+
+/* ── Graph Initialization ── */
+function initGraph(data) {
+  var c = document.getElementById('graphContainer');
+  if (!c) { console.error('[Graph] graphContainer not found'); return; }
+
+  var welcomeEl = document.getElementById('welcome');
+  if (welcomeEl) welcomeEl.style.display = 'none';
+
+  /* Build lookup */
+  nodeById = {};
+  data.nodes.forEach(function(n) { nodeById[n.id] = n; });
+
+  var links = data.edges.map(function(e) {
+    return {
+      source: e.source, target: e.target, label: e.relationship,
+      weight: e.weight || 0.5, description: e.description || ''
+    };
+  });
+
+  /* Build adjacency maps */
+  var adj = {};
+  var adjL = {};
+  links.forEach(function(l) {
+    var s = typeof l.source === 'object' ? l.source.id : l.source;
+    var t = typeof l.target === 'object' ? l.target.id : l.target;
+    if (!adj[s]) adj[s] = new Set(); adj[s].add(t);
+    if (!adj[t]) adj[t] = new Set(); adj[t].add(s);
+    if (!adjL[s]) adjL[s] = new Set(); adjL[s].add(l);
+    if (!adjL[t]) adjL[t] = new Set(); adjL[t].add(l);
+  });
+  currentAdj = adj;
+  currentAdjL = adjL;
+
+  var gd = { nodes: data.nodes.map(function(n) { return Object.assign({}, n); }), links: links };
+
+  if (graph) {
+    graph.graphData(gd);
+    return;
+  }
+
+  /* Animate frame counter for jelly pulse */
+  setInterval(function() { animFrame++; }, 50);
+
+  graph = ForceGraph()(c)
+    .graphData(gd)
+    .backgroundColor('rgba(0,0,0,0)')
+    .width(c.clientWidth)
+    .height(c.clientHeight)
+    .nodeId('id')
+    .cooldownTicks(100)
+    .d3VelocityDecay(0.3)
+    .enableNodeDrag(true)
+
+    /* ── 3D JELLY RING NODES ── */
+    .nodeCanvasObject(function(node, ctx, gs) {
+      if (node.x === undefined || node.y === undefined) return;
+
+      var hl = hlNodes.has(node.id);
+      var hv = hNode === node.id;
+      var col = getColor(node.type);
+      var R = 18;
+      var r = hv ? R * 1.25 : (hl ? R * 1.1 : R);
+      var dim = hlNodes.size > 0 && !hl && !hv;
+      var pulse = Math.sin(animFrame * 0.06 + (node.x || 0) * 0.01) * 0.12;
+
+      ctx.save();
+      ctx.globalAlpha = dim ? 0.15 : 1;
+
+      /* Outer glow halo */
+      var grd = ctx.createRadialGradient(node.x, node.y, r * 0.6, node.x, node.y, r * 2);
+      grd.addColorStop(0, col + '30');
+      grd.addColorStop(1, col + '00');
+      ctx.fillStyle = grd;
+      ctx.beginPath(); ctx.arc(node.x, node.y, r * 2, 0, Math.PI * 2); ctx.fill();
+
+      /* Dark translucent interior */
+      ctx.beginPath(); ctx.arc(node.x, node.y, r, 0, Math.PI * 2);
+      var ig = ctx.createRadialGradient(node.x - r * 0.3, node.y - r * 0.3, r * 0.1, node.x, node.y, r);
+      ig.addColorStop(0, 'rgba(20,30,50,0.6)');
+      ig.addColorStop(0.7, 'rgba(8,15,30,0.85)');
+      ig.addColorStop(1, 'rgba(5,10,20,0.9)');
+      ctx.fillStyle = ig; ctx.fill();
+
+      /* Glowing ring */
+      ctx.beginPath(); ctx.arc(node.x, node.y, r, 0, Math.PI * 2);
+      ctx.strokeStyle = col;
+      ctx.lineWidth = hv ? 3 : (hl ? 2.5 : 2);
+      ctx.shadowColor = col;
+      ctx.shadowBlur = hv ? 20 : (hl ? 14 : 8 + pulse * 20);
+      ctx.stroke();
+      ctx.shadowBlur = 0;
+
+      /* Specular highlight */
+      ctx.beginPath(); ctx.arc(node.x - r * 0.25, node.y - r * 0.25, r * 0.35, 0, Math.PI * 2);
+      var sg = ctx.createRadialGradient(node.x - r * 0.3, node.y - r * 0.35, 0, node.x - r * 0.2, node.y - r * 0.2, r * 0.4);
+      sg.addColorStop(0, 'rgba(255,255,255,0.25)');
+      sg.addColorStop(1, 'rgba(255,255,255,0)');
+      ctx.fillStyle = sg; ctx.fill();
+
+      /* Inner triangles */
+      ctx.save();
+      ctx.translate(node.x, node.y);
+      [0, Math.PI * 0.66, Math.PI * 1.33].forEach(function(angle) {
+        ctx.save();
+        ctx.rotate(angle + animFrame * 0.01);
+        ctx.beginPath();
+        var ts = r * 0.3;
+        ctx.moveTo(0, -ts); ctx.lineTo(-ts * 0.5, ts * 0.3); ctx.lineTo(ts * 0.5, ts * 0.3);
+        ctx.closePath();
+        ctx.fillStyle = col + '60';
+        ctx.fill();
+        ctx.restore();
+      });
+      ctx.restore();
+
+      /* Label */
+      var label = node.label || node.id;
+      var fs = Math.max(11 / gs, 3.5);
+      ctx.font = (hv ? '700 ' : '600 ') + fs + 'px Inter,sans-serif';
+      ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+      ctx.fillStyle = hv ? '#fff' : col;
+      ctx.shadowColor = '#000'; ctx.shadowBlur = 4;
+      ctx.fillText(label, node.x, node.y + r + 5);
+      ctx.shadowBlur = 0;
+
+      /* Type label */
+      var tfs = Math.max(8 / gs, 2.5);
+      ctx.font = '500 ' + tfs + 'px Inter,sans-serif';
+      ctx.fillStyle = '#64748b';
+      ctx.fillText((node.type || 'entity').toUpperCase(), node.x, node.y + r + 5 + fs + 3);
+
+      ctx.restore();
+    })
+
+    /* ── POINTER AREA: Critical for 100% clickability ── */
+    .nodePointerAreaPaint(function(node, color, ctx) {
+      var nx = (node.x != null) ? node.x : 0;
+      var ny = (node.y != null) ? node.y : 0;
+      ctx.beginPath();
+      ctx.arc(nx, ny, 30, 0, Math.PI * 2);
+      ctx.fillStyle = color;
+      ctx.fill();
+    })
+
+    /* ── COLORED EDGES WITH LABELS ── */
+    .linkCanvasObject(function(link, ctx, gs) {
+      var s = link.source, t = link.target;
+      if (!s || !t || s.x == null || t.x == null) return;
+      var sn = nodeById[s.id] || {};
+      var hl = hlLinks.has(link);
+      var dim = hlNodes.size > 0 && !hl;
+      var ec = getColor(sn.type);
+
+      ctx.save();
+      ctx.globalAlpha = dim ? 0.06 : (hl ? 0.9 : 0.55);
+
+      ctx.beginPath(); ctx.moveTo(s.x, s.y); ctx.lineTo(t.x, t.y);
+      ctx.strokeStyle = hl ? '#a78bfa' : ec;
+      ctx.lineWidth = hl ? 2.2 / gs : 1.2 / gs;
+      ctx.shadowColor = ec;
+      ctx.shadowBlur = hl ? 6 : 2;
+      ctx.stroke();
+      ctx.shadowBlur = 0;
+
+      /* Arrow */
+      var dx = t.x - s.x, dy = t.y - s.y;
+      var len = Math.sqrt(dx * dx + dy * dy);
+      if (len < 1) { ctx.restore(); return; }
+      var ux = dx / len, uy = dy / len;
+      var al = Math.min(8 / gs, len * 0.2);
+      var apx = t.x - ux * 20, apy = t.y - uy * 20;
+      ctx.beginPath();
+      ctx.moveTo(apx, apy);
+      ctx.lineTo(apx - ux * al + uy * al * 0.4, apy - uy * al - ux * al * 0.4);
+      ctx.lineTo(apx - ux * al - uy * al * 0.4, apy - uy * al + ux * al * 0.4);
+      ctx.closePath();
+      ctx.fillStyle = hl ? '#a78bfa' : ec;
+      ctx.fill();
+
+      /* Relationship label */
+      if (link.label && !dim) {
+        var mx = (s.x + t.x) / 2, my = (s.y + t.y) / 2;
+        var lfs = Math.max(7.5 / gs, 2.2);
+        ctx.font = '600 ' + lfs + 'px Inter,sans-serif';
+        ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        ctx.fillStyle = hl ? '#c4b5fd' : ec + 'bb';
+        ctx.fillText(link.label.toUpperCase().replace(/_/g, ' '), mx, my - 4 / gs);
+      }
+      ctx.restore();
+    })
+    .linkDirectionalArrowLength(0)
+
+    /* ── HOVER: Works for ALL nodes ── */
+    .onNodeHover(function(node) {
+      c.style.cursor = node ? 'pointer' : 'default';
+      hNode = node ? node.id : null;
+      var tt = document.getElementById('tooltip');
+      if (hoverTimeout) clearTimeout(hoverTimeout);
+
+      if (node) {
+        var entityName = node.label || node.id;
+        document.getElementById('ttLabel').textContent = entityName;
+
+        var tp = document.getElementById('ttType');
+        tp.textContent = (node.type || 'entity').toUpperCase();
+        tp.style.background = getColor(node.type) + '22';
+        tp.style.color = getColor(node.type);
+
+        var descEl = document.getElementById('ttDesc');
+
+        /* Show cached Wikipedia designation if available */
+        if (wikiCache[entityName] && wikiCache[entityName].summary) {
+          descEl.textContent = wikiCache[entityName].summary;
+        } else {
+          descEl.textContent = (node.properties && node.properties.description) || 'Intelligence entity';
+          /* Debounced Wikipedia fetch for designation */
+          hoverTimeout = setTimeout(function() {
+            if (hNode === node.id && !wikiCache[entityName]) {
+              fetch('/graph/entity/' + encodeURIComponent(entityName))
+                .then(function(r) { return r.json(); })
+                .then(function(wiki) {
+                  wikiCache[entityName] = wiki;
+                  if (hNode === node.id && wiki.summary) {
+                    descEl.textContent = wiki.summary;
+                  }
+                })
+                .catch(function() {});
+            }
+          }, 400);
+        }
+        tt.classList.add('visible');
+      } else {
+        tt.classList.remove('visible');
+      }
+    })
+
+    /* ── CLICK: Opens full intelligence panel ── */
+    .onNodeClick(function(node) {
+      if (!node) return;
+      hlNodes.clear(); hlLinks.clear();
+      hlNodes.add(node.id);
+      var nb = adj[node.id]; if (nb) nb.forEach(function(id) { hlNodes.add(id); });
+      var nl = adjL[node.id]; if (nl) nl.forEach(function(l) { hlLinks.add(l); });
+      graph.centerAt(node.x, node.y, 600);
+      graph.zoom(2.5, 600);
+      openIntelPanel(node);
+    })
+
+    .onBackgroundClick(function() {
+      hlNodes.clear(); hlLinks.clear();
+      closePanel();
+    });
+
+  graph.d3Force('charge').strength(-220);
+  graph.d3Force('link').distance(130);
+
+  c.addEventListener('mousemove', function(e) {
+    var tt = document.getElementById('tooltip');
+    tt.style.left = (e.clientX + 16) + 'px';
+    tt.style.top = (e.clientY - 16) + 'px';
+  });
+
+  window.addEventListener('resize', function() {
+    if (graph) { graph.width(c.clientWidth); graph.height(c.clientHeight); }
+  });
+}
+
+/* ── Panel Functions ── */
+function closePanel() {
+  document.getElementById('intelPanel').classList.remove('open');
+}
+
+function openIntelPanel(node) {
+  var panel = document.getElementById('intelPanel');
+  var col = getColor(node.type);
+  var entityName = node.label || node.id;
+
+  /* Header */
+  document.getElementById('ipTitle').textContent = entityName;
+  document.getElementById('ipSubtitle').textContent = (node.properties && node.properties.description) || 'Intelligence Entity';
+  var badge = document.getElementById('ipBadge');
+  badge.textContent = (node.type || 'entity').toUpperCase();
+  badge.style.background = col + '22';
+  badge.style.color = col;
+  badge.style.border = '1px solid ' + col + '44';
+
+  /* Reset */
+  document.getElementById('ipThumb').style.display = 'none';
+  document.getElementById('ipLoading').style.display = 'flex';
+  document.getElementById('ipContent').style.display = 'none';
+  panel.classList.add('open');
+
+  /* Connections */
+  var conns = document.getElementById('ipConns');
+  conns.innerHTML = '';
+  var nodeLinks = currentAdjL[node.id];
+  if (nodeLinks && nodeLinks.size > 0) {
+    nodeLinks.forEach(function(l) {
+      var src = typeof l.source === 'object' ? l.source : { id: l.source };
+      var tgt = typeof l.target === 'object' ? l.target : { id: l.target };
+      var other = src.id === node.id ? tgt : src;
+      var otherNode = nodeById[other.id] || {};
+      var div = document.createElement('div');
+      div.className = 'ip-conn';
+      div.innerHTML =
+        '<div class="ip-conn-dot" style="background:' + getColor(otherNode.type) + '"></div>' +
+        '<span class="ip-conn-name">' + (otherNode.label || other.id) + '</span>' +
+        '<span class="ip-conn-rel">' + (l.label || 'related').toUpperCase().replace(/_/g, ' ') + '</span>';
+      div.onclick = function() {
+        if (otherNode && otherNode.id) {
+          var gNodes = graph.graphData().nodes;
+          var target = gNodes.find(function(n) { return n.id === otherNode.id; });
+          if (target) {
+            hlNodes.clear(); hlLinks.clear();
+            hlNodes.add(target.id);
+            var nb2 = currentAdj[target.id]; if (nb2) nb2.forEach(function(id) { hlNodes.add(id); });
+            var nl2 = currentAdjL[target.id]; if (nl2) nl2.forEach(function(ll) { hlLinks.add(ll); });
+            graph.centerAt(target.x, target.y, 600);
+            graph.zoom(2.5, 600);
+            openIntelPanel(target);
+          }
+        }
+      };
+      conns.appendChild(div);
+    });
+    document.getElementById('ipConnSection').style.display = 'block';
+  } else {
+    document.getElementById('ipConnSection').style.display = 'none';
+  }
+
+  /* Fetch Wikipedia data */
+  var wikiPromise;
+  if (wikiCache[entityName]) {
+    wikiPromise = Promise.resolve(wikiCache[entityName]);
+  } else {
+    wikiPromise = fetch('/graph/entity/' + encodeURIComponent(entityName))
+      .then(function(r) { return r.json(); })
+      .then(function(wiki) { wikiCache[entityName] = wiki; return wiki; });
+  }
+
+  wikiPromise.then(function(wiki) {
+    /* Thumbnail */
+    if (wiki.thumbnail) {
+      var thumb = document.getElementById('ipThumb');
+      thumb.src = wiki.thumbnail;
+      thumb.style.display = 'block';
+    }
+
+    /* Update subtitle with Wikipedia designation */
+    if (wiki.summary) {
+      document.getElementById('ipSubtitle').textContent = wiki.summary;
+    }
+
+    /* Description (first 3 sentences) */
+    var fullText = wiki.extract || wiki.description || (node.properties && node.properties.description) || 'No detailed information available.';
+    var sentences = fullText.split('. ');
+    var shortDesc = sentences.slice(0, 3).join('. ') + (sentences.length > 3 ? '.' : '');
+    document.getElementById('ipDesc').textContent = shortDesc;
+
+    /* Insight stat cards */
+    var insights = document.getElementById('ipInsights');
+    insights.innerHTML = '';
+    var connCount = nodeLinks ? nodeLinks.size : 0;
+    var cards = [
+      { num: (node.type || 'Entity').toUpperCase(), label: 'Classification', color: col },
+      { num: connCount, label: 'Connections', color: '#a78bfa' }
+    ];
+    if (node.properties && node.properties.importance) {
+      cards.push({ num: (node.properties.importance * 100).toFixed(0) + '%', label: 'Global Impact', color: '#34d399' });
+    }
+    if (wiki.coordinates) {
+      cards.push({ num: wiki.coordinates.lat.toFixed(1) + '°', label: 'Latitude', color: '#38bdf8' });
+    }
+
+    cards.forEach(function(card) {
+      insights.innerHTML +=
+        '<div class="ip-card" style="border-top: 3px solid ' + card.color + '">' +
+          '<div class="ip-card-num" style="color: ' + card.color + '">' + card.num + '</div>' +
+          '<div class="ip-card-label">' + card.label + '</div>' +
+        '</div>';
+    });
+
+    /* Wiki link */
+    document.getElementById('ipWikiLink').href = wiki.url || '#';
+
+    document.getElementById('ipLoading').style.display = 'none';
+    document.getElementById('ipContent').style.display = 'block';
+  }).catch(function() {
+    document.getElementById('ipLoading').innerHTML = '<span style="color:#f87171">Unable to fetch details. Try again.</span>';
+  });
+}
+
+/* ── UI Functions ── */
+function setQuery(q) {
+  document.getElementById('queryInput').value = q;
+}
+
+function submitQuery() {
+  var query = document.getElementById('queryInput').value.trim();
+  if (!query) return;
+  var btn = document.getElementById('submitBtn');
+  var loading = document.getElementById('loading');
+  var errorBox = document.getElementById('errorBox');
+  btn.disabled = true;
+  loading.classList.add('active');
+  errorBox.classList.remove('active');
+  closePanel();
+
+  fetch('/graph/query', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ query: query })
+  })
+  .then(function(res) {
+    if (!res.ok) {
+      return res.json().catch(function() { return {}; }).then(function(err) {
+        throw new Error(err.message || 'Failed: ' + res.status);
+      });
+    }
+    return res.json();
+  })
+  .then(function(data) {
+    /* Sanitize data to guarantee completeness */
+    data = sanitizeGraphData(data);
+
+    document.getElementById('graphHeader').style.display = 'flex';
+    document.getElementById('graphSub').style.display = 'block';
+    document.getElementById('queryPill').textContent = 'Query: "' + query + '"';
+    document.getElementById('nodeCount2').textContent = data.nodes.length;
+    document.getElementById('edgeCount2').textContent = data.edges.length;
+    var sp = document.getElementById('sourcePill2');
+    sp.innerHTML = (data.meta && data.meta.dataSource === 'gdelt')
+      ? '<span style="color:#34d399">🌐 GDELT</span>'
+      : '<span style="color:#fb923c">🤖 AI</span>';
+    document.getElementById('legend').classList.add('active');
+
+    hlNodes.clear(); hlLinks.clear(); hNode = null;
+    initGraph(data);
+  })
+  .catch(function(e) {
+    errorBox.textContent = '⚠ ' + e.message;
+    errorBox.classList.add('active');
+  })
+  .finally(function() {
+    btn.disabled = false;
+    loading.classList.remove('active');
+  });
+}
+
+document.getElementById('queryInput').addEventListener('keydown', function(e) {
+  if (e.key === 'Enter') submitQuery();
+});
+</script>
+</body>
+</html>
