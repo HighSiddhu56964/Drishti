@@ -451,6 +451,7 @@ body::after {
   backdrop-filter: blur(24px); z-index: 300;
   transition: right 0.4s cubic-bezier(0.4,0,0.2,1);
   display: flex; flex-direction: column;
+  overflow: hidden;
 }
 .intel-panel.open { right: 0; animation: panelSlideIn 0.4s ease-out; }
 

@@ -4,6 +4,7 @@ import JarvisPanel from "./components/JarvisPanel";
 import GlobeView from "./components/GlobeView";
 import GraphCanvas from "./components/GraphCanvas";
 import IntelPanel from "./components/IntelPanel";
+import PredictivePanel from "./components/PredictivePanel";
 import Legend from "./components/Legend";
 import type { GraphPayload, NodeData } from "./types";
 import { sanitizeGraphData, mergeGraphData } from "./types";
@@ -18,7 +19,7 @@ export default function App() {
   const [error, setError] = useState<string | null>(null);
   const [selectedNode, setSelectedNode] = useState<NodeData | null>(null);
   const [expanding, setExpanding] = useState(false);
-  const [predictivePanelOpen, setPredictivePanelOpen] = useState(false);
+  const [predictiveNode, setPredictiveNode] = useState<NodeData | null>(null);
   const [reEvalLoading, setReEvalLoading] = useState(false);
   const [reEvalResult, setReEvalResult] = useState<any>(null);
   const graphRef = useRef<any>(null);
@@ -161,7 +162,20 @@ export default function App() {
                 <span className="gh-sep">·</span>
                 <span className="gh-stat">{graphData.edges.length}</span> edges
                 <span className="gh-sep">·</span>
-                <button className="btn-predictive" onClick={() => setPredictivePanelOpen(true)}>
+                <button className="btn-predictive" onClick={() => {
+                    // Synthesize an aggregate node representing the entire graph event
+                    const aggregateNode = {
+                      id: `scenario-${Date.now()}`,
+                      label: query || 'Current Geopolitical Scenario',
+                      type: 'EVENT',
+                      properties: {
+                        description: `Multi-actor scenario with ${graphData.nodes.length} entities and ${graphData.edges.length} relationships`,
+                        nodes: graphData.nodes.length,
+                        edges: graphData.edges.length,
+                      }
+                    };
+                    setPredictiveNode(aggregateNode as any);
+                  }}>
                   PREDICTIVE ANALYSIS
                 </button>
                 <button className="btn-reevaluate" onClick={handleReEvaluate} disabled={reEvalLoading}>
@@ -210,8 +224,17 @@ export default function App() {
         onClose={handleClosePanel}
         onNavigate={handleNodeClick}
         onExpand={handleExpand}
+        onPredict={(n) => setPredictiveNode(n)}
         expanding={expanding}
       />
+
+      {/* Predictive Panel - Fixed viewport overlay, unclipped */}
+      {predictiveNode && (
+        <PredictivePanel
+          node={predictiveNode}
+          onClose={() => setPredictiveNode(null)}
+        />
+      )}
 
       {/* Re-Evaluation Results Overlay */}
       {reEvalResult && (
