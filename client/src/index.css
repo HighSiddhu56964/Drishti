@@ -65,7 +65,7 @@ body::after {
 .dashboard { display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
 .dashboard-body { flex: 1; display: flex; overflow: hidden; position: relative; }
 .main-viewport {
-  flex: 1; display: flex; flex-direction: column; position: relative; overflow: hidden;
+  flex: 1; min-width: 0; display: flex; flex-direction: column; position: relative; overflow: hidden;
   border-right: 1px solid var(--border);
 }
 .viewport-content { flex: 1; position: relative; overflow: hidden; }
@@ -297,6 +297,46 @@ body::after {
 }
 .jarvis-status { font-size: 8px; letter-spacing: 2px; color: var(--text-muted); }
 
+.gh-search-container {
+  display: flex; align-items: center; gap: 8px; position: relative;
+}
+.gh-search-toggle {
+  background: none; border: 1px solid var(--border); color: var(--green);
+  cursor: pointer; padding: 4px 8px; font-size: 12px; transition: all 0.2s;
+  display: flex; align-items: center; justify-content: center;
+}
+.gh-search-toggle:hover { background: var(--green-dim); box-shadow: 0 0 8px var(--green-glow); }
+.gh-search-container.active .gh-search-toggle { border-color: var(--green); background: var(--green-dim); }
+
+.gh-search-input-wrap {
+  position: absolute; right: 0; top: 100%; margin-top: 8px;
+  width: 280px; background: var(--bg-panel); border: 1px solid var(--border-strong);
+  z-index: 1000; box-shadow: 0 8px 32px rgba(0,0,0,0.9);
+  animation: fadeIn 0.15s ease-out;
+}
+.gh-search-input-wrap input {
+  width: 100%; padding: 10px 14px; background: rgba(0,0,0,0.6);
+  border: none; border-bottom: 1px solid var(--border);
+  color: var(--text-primary); font-family: inherit; font-size: 11px; outline: none;
+}
+.gh-search-input-wrap input:focus { background: rgba(0,255,65,0.04); }
+
+.gh-search-results {
+  max-height: 240px; overflow-y: auto;
+}
+.gh-search-results::-webkit-scrollbar { width: 4px; }
+.gh-search-results::-webkit-scrollbar-thumb { background: var(--green-dim); }
+
+.gh-search-item {
+  padding: 10px 14px; display: flex; justify-content: space-between; align-items: center;
+  cursor: pointer; border-bottom: 1px solid rgba(0,255,65,0.05);
+  transition: all 0.15s;
+}
+.gh-search-item:last-child { border-bottom: none; }
+.gh-search-item:hover { background: var(--green-dim); }
+.gh-search-item .item-label { font-size: 11px; font-weight: 600; color: var(--text-primary); }
+.gh-search-item .item-type { font-size: 8px; font-weight: 700; color: var(--text-dim); letter-spacing: 1px; }
+
 .view-switcher {
   display: flex; gap: 4px; padding: 8px 12px;
   border-bottom: 1px solid var(--border);
@@ -445,15 +485,24 @@ body::after {
    INTEL PANEL (RIGHT OVERLAY)
    ══════════════════════════════════════════════════════════════════════ */
 .intel-panel {
-  position: fixed; top: 0; right: -42%; width: 38%; height: 100vh;
+  width: 0; height: 100%;
   background: var(--bg-panel);
-  border-left: 1px solid var(--border-strong);
-  backdrop-filter: blur(24px); z-index: 300;
-  transition: right 0.4s cubic-bezier(0.4,0,0.2,1);
+  border-left: 0px solid var(--border-strong);
   display: flex; flex-direction: column;
   overflow: hidden;
+  transition: width 0.4s cubic-bezier(0.4,0,0.2,1);
+  flex-shrink: 0;
+  z-index: 100;
 }
-.intel-panel.open { right: 0; animation: panelSlideIn 0.4s ease-out; }
+.intel-panel.open { 
+  width: 400px; 
+  border-left-width: 1px;
+}
+.intel-inner {
+  width: 400px;
+  height: 100%;
+  display: flex; flex-direction: column;
+}
 
 .ip-header { position: relative; padding: 0; flex-shrink: 0; overflow: hidden; }
 .ip-header-glow { position: absolute; inset: 0; pointer-events: none; }
@@ -481,8 +530,26 @@ body::after {
 }
 .ip-close:hover { background: rgba(255,32,64,0.15); color: var(--red); }
 
-.ip-media { flex-shrink: 0; }
-.ip-thumb { width: 100%; max-height: 180px; object-fit: cover; border-bottom: 1px solid var(--border); }
+.ip-media { 
+  margin-bottom: 20px;
+  border: 1px solid var(--border);
+  padding: 2px;
+  background: var(--bg-card);
+  box-shadow: 0 0 15px rgba(0,0,0,0.5);
+  position: relative;
+}
+.ip-media::before {
+  content: ''; position: absolute; inset: 0;
+  background: linear-gradient(180deg, transparent 0%, rgba(0,255,65,0.05) 100%);
+  pointer-events: none; z-index: 1;
+}
+.ip-thumb { 
+  width: 100%; 
+  max-height: 220px; 
+  object-fit: cover; 
+  display: block;
+  filter: saturate(1.1) brightness(0.9);
+}
 .ip-body { padding: 16px 24px 32px; flex: 1; overflow-y: auto; }
 .ip-body::-webkit-scrollbar { width: 4px; }
 .ip-body::-webkit-scrollbar-thumb { background: rgba(0,255,65,0.15); }

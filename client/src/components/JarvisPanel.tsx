@@ -58,10 +58,18 @@ export default function JarvisPanel({ onQuery, onSwitchView, activeView, loading
   ];
 
   const exampleQueries = [
-    'India defense strategy',
-    'US-China trade war',
-    'Middle East oil geopolitics',
-    'NATO expansion Europe',
+'India LPG supply chain',
+'Strait of Hormuz geopolitics',
+'India fuel price inflation',
+'India transportation logistics',
+'Energy diversification India',
+'Maritime security Indian Ocean',
+'India economic stability risks',
+'Global supply chain disruption',
+'India strategic oil reserves',
+'Public policy fuel subsidies India',
+'India household energy impact',
+'India import dependency analysis'
   ];
 
   return (

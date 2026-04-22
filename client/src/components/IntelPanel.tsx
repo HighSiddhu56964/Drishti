@@ -68,6 +68,7 @@ export default function IntelPanel({ node, graphData, onClose, onNavigate, onExp
 
   return (
     <div className={`intel-panel ${node ? "open" : ""}`}>
+      <div className="intel-inner">
       {/* ═══ HEADER ═══ */}
       <div className="ip-header">
         <div className="ip-header-glow" style={{ background: `radial-gradient(ellipse at 30% 0%, ${col}22 0%, transparent 70%)` }} />
@@ -88,18 +89,17 @@ export default function IntelPanel({ node, graphData, onClose, onNavigate, onExp
         </div>
       </div>
 
-      {/* ═══ MEDIA ═══ */}
-      <div className="ip-media">
-        <img
-          className="ip-thumb"
-          src={wiki?.thumbnail || `https://source.unsplash.com/featured/?${imageQuery}`}
-          alt={node.label}
-          onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
-        />
-      </div>
-
       {/* ═══ BODY (SCROLLABLE) ═══ */}
       <div className="ip-body">
+        {/* ═══ MEDIA ═══ */}
+        <div className="ip-media">
+          <img
+            className="ip-thumb"
+            src={wiki?.thumbnail || `https://source.unsplash.com/featured/?${imageQuery}`}
+            alt={node.label}
+            onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
+          />
+        </div>
 
         {/* Stat cards */}
         <div className="ip-stats">
@@ -281,6 +281,7 @@ export default function IntelPanel({ node, graphData, onClose, onNavigate, onExp
         <button className="predict-btn" onClick={() => node && onPredict(node)}>
           <ActivitySquare size={14} /> PREDICTIVE ANALYSIS &amp; FORECASTING
         </button>
+      </div>
       </div>
     </div>
   );

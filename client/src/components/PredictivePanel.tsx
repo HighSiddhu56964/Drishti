@@ -40,8 +40,9 @@ export default function PredictivePanel({ node, onClose }: PredictivePanelProps)
 
   return (
     <div className="predictive-panel">
-      <div className="pp-header">
-        <div className="pp-title">
+      <div className="predictive-inner">
+        <div className="pp-header">
+          <div className="pp-title">
           <span>FORECAST MODULE: </span>
           <span className="pp-label">{node.label}</span>
           {!loading && data && (
@@ -77,6 +78,7 @@ export default function PredictivePanel({ node, onClose }: PredictivePanelProps)
           </>
         ) : null}
       </div>
+      </div>
     </div>
   );
 }
@@ -105,8 +107,20 @@ function TabTrajectory({ data, animate }: { data: any, animate: boolean }) {
           <div className="tl-future"></div>
           {data.timelineEvents?.map((e: any, i: number) => {
             const isFuture = e.type === 'projected';
+            const pastEvents = data.timelineEvents.filter((x: any) => x.type !== 'projected');
+            const futureEvents = data.timelineEvents.filter((x: any) => x.type === 'projected');
+            
+            let leftPos = '50%';
+            if (!isFuture) {
+              const idx = pastEvents.indexOf(e);
+              leftPos = `${(idx + 0.5) * (50 / pastEvents.length)}%`;
+            } else {
+              const idx = futureEvents.indexOf(e);
+              leftPos = `${50 + (idx + 0.5) * (50 / futureEvents.length)}%`;
+            }
+
             return (
-              <div key={i} className={`tl-event ${isFuture ? 'future' : 'past'}`}>
+              <div key={i} className={`tl-event ${isFuture ? 'future' : 'past'}`} style={{ left: leftPos }}>
                 <div className="tl-year">{e.year}</div>
                 <div className="tl-ev-label">{e.label}</div>
               </div>

@@ -22,6 +22,8 @@ export default function App() {
   const [predictiveNode, setPredictiveNode] = useState<NodeData | null>(null);
   const [reEvalLoading, setReEvalLoading] = useState(false);
   const [reEvalResult, setReEvalResult] = useState<any>(null);
+  const [searchInput, setSearchInput] = useState('');
+  const [isSearching, setIsSearching] = useState(false);
   const graphRef = useRef<any>(null);
   const aisEnabled = useRef(false);
 
@@ -162,6 +164,48 @@ export default function App() {
                 <span className="gh-sep">·</span>
                 <span className="gh-stat">{graphData.edges.length}</span> edges
                 <span className="gh-sep">·</span>
+                
+                <div className={`gh-search-container ${isSearching ? 'active' : ''}`}>
+                  <button className="gh-search-toggle" onClick={() => setIsSearching(!isSearching)}>
+                    🔍
+                  </button>
+                  {isSearching && (
+                    <div className="gh-search-input-wrap">
+                      <input 
+                        type="text" 
+                        placeholder="Search entities..." 
+                        value={searchInput}
+                        onChange={(e) => setSearchInput(e.target.value)}
+                        autoFocus
+                      />
+                      {searchInput && (
+                        <div className="gh-search-results">
+                          {graphData.nodes
+                            .filter(n => (n.label || n.id).toLowerCase().includes(searchInput.toLowerCase()))
+                            .slice(0, 6)
+                            .map(n => (
+                              <div 
+                                key={n.id} 
+                                className="gh-search-item"
+                                onClick={() => {
+                                  handleNodeClick(n);
+                                  graphRef.current?.highlightNode(n.id);
+                                  setSearchInput('');
+                                  setIsSearching(false);
+                                }}
+                              >
+                                <span className="item-label">{n.label || n.id}</span>
+                                <span className="item-type">{n.type}</span>
+                              </div>
+                            ))
+                          }
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                <span className="gh-sep">·</span>
                 <button className="btn-predictive" onClick={() => {
                     // Synthesize an aggregate node representing the entire graph event
                     const aggregateNode = {
@@ -207,6 +251,25 @@ export default function App() {
           {activeView === 'graph' && graphData && <Legend />}
         </div>
 
+        {/* Intel Panel */}
+        <IntelPanel
+          node={selectedNode}
+          graphData={graphData}
+          onClose={handleClosePanel}
+          onNavigate={handleNodeClick}
+          onExpand={handleExpand}
+          onPredict={(n) => setPredictiveNode(n)}
+          expanding={expanding}
+        />
+
+        {/* Predictive Panel */}
+        {predictiveNode && (
+          <PredictivePanel
+            node={predictiveNode}
+            onClose={() => setPredictiveNode(null)}
+          />
+        )}
+
         {/* Jarvis Sidebar */}
         <JarvisPanel
           onQuery={handleQuery}
@@ -216,25 +279,6 @@ export default function App() {
           graphStats={graphStats}
         />
       </div>
-
-      {/* Intel Panel */}
-      <IntelPanel
-        node={selectedNode}
-        graphData={graphData}
-        onClose={handleClosePanel}
-        onNavigate={handleNodeClick}
-        onExpand={handleExpand}
-        onPredict={(n) => setPredictiveNode(n)}
-        expanding={expanding}
-      />
-
-      {/* Predictive Panel - Fixed viewport overlay, unclipped */}
-      {predictiveNode && (
-        <PredictivePanel
-          node={predictiveNode}
-          onClose={() => setPredictiveNode(null)}
-        />
-      )}
 
       {/* Re-Evaluation Results Overlay */}
       {reEvalResult && (
